@@ -32,7 +32,9 @@ class Point{
 let points = [];
 /** @type {Point[]} */
 let lerps = [];
-let t = 0.5;
+let t = 0;
+let isDragging = false;
+let draggingPoint;
 
 /** @type {HTMLCanvasElement} */
 const canvas = document.querySelector("#canva");
@@ -55,7 +57,8 @@ function drawPoint(x, y, color){
     ctx.closePath();
 }
 
-function drawCurves(){
+function drawCubicBezier(){
+    // desenha as curvas 
     for( let i = 0; i < points.length-3; i += 3 ){
         let p0 = points[i];
         let p1 = points[i+1];
@@ -79,41 +82,59 @@ function drawCurves(){
             ctx.fill();
             ctx.closePath();
         }
-
-        if( showPointsButton.checked ){
-            let a = lerp(p0, p1, t);
-            let b = lerp(p1, p2, t);
-            let c = lerp(p2, p3, t);
-            let d = lerp(a, b, t);
-            let e = lerp(b, c, t);
-            let l = lerp(d, e, t);
-            drawPoint(l.x, l.y, "#6f71d6");
-        }
     }
+
+}
+
+function navigatePoint(){
+    let globalT = t * points.length;
+    indexA = Math.trunc(globalT / 4);
+    let pointA = points[indexA];
+    let pointB = points[indexA+3];
+
+    drawPoint(pointA.x, pointA.y, "blue");
+    drawPoint(pointB.x, pointB.y, "blue");
+    
+}
+
+function drawLine(x1, y1, x2, y2, color){
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
 }
 
 function renderScreen(){
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     if( showPointsButton.checked ){
-        for( let i = 0; i < points.length-1; i++ ){
-    
-            const a = points[i];
-            const b = points[i+1];
-            ctx.beginPath();
-            ctx.moveTo(a.x, a.y);
-            ctx.lineTo(b.x, b.y);
-            ctx.strokeStyle = "#88bdad";
-            ctx.lineWidth = 3;
-            ctx.stroke();
-    
+        // let a = points[]
+        for( let i = 0; i < points.length-1; i +=3 ){
+            
+            const a = points[Math.max(i-1, 0)];
+            const b = points[i];
+            const c = points[Math.min(i+1, points.length-1)];
+            console.log(Math.max(i-1, 0), i, Math.min(i+1, points.length-1));
+            drawLine(a.x, a.y, b.x, b.y, "#88bdad");
+            drawLine(b.x, b.y, c.x, c.y, "#88bdad");
+
             let l = lerp(points[i], points[i+1], t);
             drawPoint(l.x, l.y, "#9deeb6");
+            // Mostra lerp de cada 2 pontos
+
+        }
+        if( points.length % 4 == 0 ){
+            console.log(points.length-1, points.length-2);
+            drawLine(points[points.length-1].x, points[points.length-1].y,
+                points[points.length-2].x, points[points.length-2].y, "blue"
+            );
         }
         
     }
 
     // desenha as curvas e o lerps
-    drawCurves();
+    drawCubicBezier();
 
     for( const point of points ){
         drawPoint(point.x, point.y, "#d45757");
@@ -133,9 +154,36 @@ canvas.addEventListener("click", (event) => {
     const x = event.offsetX;
     const y = event.offsetY;
 
-    points.push(new Point(x, y));
+    if(!isDragging){
+        points.push(new Point(x, y));
+    } else{
+        isDragging = false;
+    }
     renderScreen();
+    
 
+});
+
+canvas.addEventListener("mousedown", (event) => {
+    const x = event.offsetX;
+    const y = event.offsetY;
+    for( let i = 0; i < points.length; ++i ){
+        if( Math.hypot(points[i].x - x, points[i].y - y) < 10 ){
+            isDragging = true;
+            pointToDrag = i;
+            break;
+        }
+    }
+
+});
+
+
+canvas.addEventListener("mousemove", (event) =>{
+    if( isDragging ){
+        points[pointToDrag].x = event.offsetX;
+        points[pointToDrag].y = event.offsetY;
+        renderScreen();
+    }
 });
 
 // Limpar tela
@@ -147,6 +195,7 @@ clearBt.addEventListener("click", () => {
 slider.addEventListener("input", () => {
     t = Number(slider.value);
     renderScreen();
+    // navigatePoint();
 });
 
 showPointsButton.addEventListener("input", () => {
