@@ -7,12 +7,20 @@
 </head>
 <body style="background-color: #2f2f3a">
     <div style="margin-bottom: 20px; padding-left: 120px">
-        <input type="range" id="slider" min="0" max="1" step="0.01" value="0">
-        <button id="clear">Limpar Tela</button>
+        <input type="range" id="slider" min="0.001" max="1" step="0.01" value="0">
+        <button id="clearButton">Limpar Tela</button>
+        <button id="undoButton">Desfazer</button>
         <label>
-            <input type="checkbox" id="showPointsButton" checked=true ></button>
-            <span style="color: white">Exibir Pontos</span>
+            <input type="checkbox" id="showHelpersButton" checked=true ></button>
+            <span style="color: white">Exibir Auxiliares</span>
         </label>
+
+        <input type="radio" id="c0button" name="sRadios" value="s0" checked=true>
+        <label style="color: white">Bezier Cubic</label> 
+        <input type="radio" id="c1button" name="sRadios" value="s1">
+        <label style="color: white">Catmull-Rom</label> 
+        <input type="radio" id="c2button" name="sRadios" value="s2">
+        <label style="color: white">B-Spline</label> 
     </div>
     <canvas id="canva"></canvas>
 
