@@ -30,8 +30,6 @@ class Point{
 
 /** @type {Point[]} */
 let points = [];
-/** @type {Point[]} */
-let lerps = [];
 let t = 0;
 let isDragging = false;
 let draggingPoint;
@@ -61,6 +59,14 @@ function drawPoint(x, y, color, size){
     ctx.closePath();
 }
 
+function getCubicBezierParam(p0, p1, p2, p3){
+    return {
+        a1: (-3)*p0 + 3*p1,
+        a2: 3*p0 - 6*p1 + 3*p2,
+        a3: -p0 + 3*p1 - 3*p2 + p3
+    }
+}
+
 function drawCubicBezierSpline(){
     // desenha as splines auxiliares
     if( showHelpersButton.checked){
@@ -73,37 +79,42 @@ function drawCubicBezierSpline(){
         }
     }
     // desenha as curvas 
+    ctx.strokeStyle = "#cfcece";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
     for( let i = 0; i < points.length-3; i += 3 ){
         let p0 = points[i];
         let p1 = points[i+1];
         let p2 = points[i+2];
         let p3 = points[i+3];
-        let par1x = (-3)*p0.x + 3*p1.x
-        let par2x = 3*p0.x - 6*p1.x + 3*p2.x
-        let par3x = -p0.x + 3*p1.x - 3*p2.x + p3.x
+        const paramX = getCubicBezierParam(p0.x, p1.x, p2.x, p3.x);
+        const paramY = getCubicBezierParam(p0.y, p1.y, p2.y, p3.y);
 
-        let par1y = (-3)*p0.y + 3*p1.y
-        let par2y = 3*p0.y - 6*p1.y + 3*p2.y
-        let par3y = -p0.y + 3*p1.y - 3*p2.y + p3.y
+        for( let j = 0; j <= 50; j += 1 ){
+            const t = j / 50;
+            const lx = p0.x + t*(paramX.a1 + t*(paramX.a2 + t*paramX.a3));
+            const ly = p0.y + t*(paramY.a1 + t*(paramY.a2 + t*paramY.a3));
 
-        for( let j = 0; j < 1; j += 0.001 ){
-            lx = p0.x + j*par1x + (j**2)*par2x + (j**3)*par3x;
-            ly = p0.y + j*par1y + (j**2)*par2y + (j**3)*par3y;
-
-            ctx.fillStyle = "#cfcece";
-            ctx.beginPath();
-            ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.closePath();
+            if( j == 0 ) ctx.moveTo(lx, ly);
+            else ctx.lineTo(lx, ly);
         }
     }
+    ctx.stroke();
 
+}
+
+function getCatmullRomParam(p0, p1, p2, p3){
+    return {
+        a1: (-p0 + p2)/2,
+        a2: (2 * p0 - 5 * p1 + 4 * p2 - p3)/2,
+        a3: (-p0 + 3 * p1 - 3 * p2 + p3)/2
+    }
 }
 
 function drawCatmullRomSpline(){
     if( points.length < 2) return;
-    const firstAnchor = points[1].mult(2).sub(points[0]);
-    const lastAnchor = points[points.length-2].mult(2).sub(points[points.length-1]);
+    const firstAnchor = points[0].mult(2).sub(points[1]);
+    const lastAnchor = points[points.length-1].mult(2).sub(points[points.length-2]);
     const catmullPoints = [firstAnchor].concat(points);
     catmullPoints.push(lastAnchor);
 
@@ -112,29 +123,79 @@ function drawCatmullRomSpline(){
         drawPoint(lastAnchor.x, lastAnchor.y, "#cfcece", 8);
     }
 
+    ctx.strokeStyle = "#cfcece";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
     for( let i = 0; i < catmullPoints.length-3; ++i ){
         const p0 = catmullPoints[i];
         const p1 = catmullPoints[i+1];
         const p2 = catmullPoints[i+2];
         const p3 = catmullPoints[i+3];
-        const par1x = (-p0.x + p2.x)/2
-        const par2x = (2*p0.x - 5*p1.x + 4*p2.x - p3.x)/2
-        const par3x = (-p0.x + 3*p1.x - 3*p2.x + p3.x)/2
+        const paramX = getCatmullRomParam(p0.x, p1.x, p2.x, p3.x);
+        const paramY = getCatmullRomParam(p0.y, p1.y, p2.y, p3.y);
 
-        const par1y = (-p0.y + p2.y)/2
-        const par2y = (2*p0.y - 5*p1.y + 4*p2.y - p3.y)/2
-        const par3y = (-p0.y + 3*p1.y - 3*p2.y + p3.y)/2
+        for( let j = 0; j < 50; ++j ){
+            const t = j / 50;
+            const lx = p1.x + t*(paramX.a1 + t*(paramX.a2 + t*paramX.a3));
+            const ly = p1.y + t*(paramY.a1 + t*(paramY.a2 + t*paramY.a3));
 
-        for( let j = 0; j < 1; j += 0.001 ){
-            const lx = p1.x + j*par1x + (j**2)*par2x + (j**3)*par3x;
-            const ly = p1.y + j*par1y + (j**2)*par2y + (j**3)*par3y;
-
-            ctx.fillStyle = "#cfcece";
-            ctx.beginPath();
-            ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.closePath();
+            if( j == 0 ) ctx.moveTo(lx, ly);
+            else ctx.lineTo(lx, ly);
         }
+    }
+    ctx.stroke();
+}
+
+function getBSplineParam(p0, p1, p2, p3){
+    return {
+        a0: (p0 + 4*p1 + p2)/6,
+        a1: (-p0 + p2)/2,
+        a2: (p0 - 2*p1 + p2)/2,
+        a3: (-p0 + 3*p1 - 3*p2 + p3)/6
+    }
+}
+
+function drawBSpline(){
+    if(showHelpersButton.checked){
+        for( let i = 0; i < points.length-1; ++i ){
+            const a = points[i];
+            const b = points[i+1];
+            drawLine(a.x, a.y, b.x, b.y, "#88bdad");
+        }
+    }
+
+    let BSplinePoints = [];
+    ctx.strokeStyle = "#cfcece";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    let lx, ly;
+    for( let i = 0; i < points.length-3; ++i ){
+        const p0 = points[i];
+        const p1 = points[i+1];
+        const p2 = points[i+2];
+        const p3 = points[i+3];
+        const paramX = getBSplineParam(p0.x, p1.x, p2.x, p3.x);
+        const paramY = getBSplineParam(p0.y, p1.y, p2.y, p3.y);
+
+        for( let j = 0; j < 50; ++j ){
+            const t = j / 50;
+            lx = paramX.a0 + t*(paramX.a1 + t*(paramX.a2 + t*paramX.a3));
+            ly = paramY.a0 + t*(paramY.a1 + t*(paramY.a2 + t*paramY.a3));
+            
+            if( j == 0 ){
+                BSplinePoints.push(new Point(lx, ly));
+                ctx.moveTo(lx, ly);
+            }
+            else ctx.lineTo(lx, ly);
+        }
+    }
+    if( points.length >= 3 ){
+        BSplinePoints.push(new Point(lx, ly));
+    }
+    ctx.stroke();
+
+    for( const point of BSplinePoints ){
+        drawPoint(point.x, point.y, "#618bff", 8);
     }
 }
 
@@ -152,12 +213,11 @@ function navigatePoint(){
             const p1 = points[index+1];
             const p2 = points[index+2];
             const p3 = points[index+3];
-            const a = lerp(p0, p1, localT);
-            const b = lerp(p1, p2, localT);
-            const c = lerp(p2, p3, localT);
-            const d = lerp(a, b, localT);
-            const e = lerp(b, c, localT);
-            point = lerp(d, e, localT);
+            const paramX = getCubicBezierParam(p0.x, p1.x, p2.x, p3.x);
+            const paramY = getCubicBezierParam(p0.y, p1.y, p2.y, p3.y);
+            const lx = p0.x + localT*(paramX.a1 + localT*(paramX.a2 + localT*paramX.a3));
+            const ly = p0.y + localT*(paramY.a1 + localT*(paramY.a2 + localT*paramY.a3));
+            point = new Point(lx, ly);
             break;
         }
         case "s1": // catmull
@@ -165,32 +225,46 @@ function navigatePoint(){
             const globalT = t * (points.length-1);
             const index = Math.trunc(globalT);
             const localT = globalT - Math.trunc(globalT);
-            const firstAnchor = points[1].mult(2).sub(points[0]);
-            const lastAnchor = points[points.length-2].mult(2).sub(points[points.length-1]);
+            const firstAnchor = points[0].mult(2).sub(points[1]);
+            const lastAnchor = points[points.length-1].mult(2).sub(points[points.length-2]);
             const catmullPoints = [firstAnchor].concat(points);
             catmullPoints.push(lastAnchor);
             const p0 = catmullPoints[index];
             const p1 = catmullPoints[index+1];
             const p2 = catmullPoints[index+2];
             const p3 = catmullPoints[index+3];
-            const par1x = (-p0.x + p2.x)/2
-            const par2x = (2*p0.x - 5*p1.x + 4*p2.x - p3.x)/2
-            const par3x = (-p0.x + 3*p1.x - 3*p2.x + p3.x)/2
-            
-            let par1y = (-p0.y + p2.y)/2
-            let par2y = (2*p0.y - 5*p1.y + 4*p2.y - p3.y)/2
-            let par3y = (-p0.y + 3*p1.y - 3*p2.y + p3.y)/2
-            const x = p1.x + localT*par1x + (localT**2)*par2x + (localT**3)*par3x;
-            const y = p1.y + localT*par1y + (localT**2)*par2y + (localT**3)*par3y;
+            const paramX = getCatmullRomParam(p0.x, p1.x, p2.x, p3.x);
+            const paramY = getCatmullRomParam(p0.y, p1.y, p2.y, p3.y);
+
+            const x = p1.x + localT*(paramX.a1 + localT*(paramX.a2 + localT*paramX.a3));
+            const y = p1.y + localT*(paramY.a1 + localT*(paramY.a2 + localT*paramY.a3));
             point = new Point(x, y);
             break;
         }
+        case "s2":
+            {
+                const globalT = t * (points.length-3);
+                const index = Math.trunc(globalT);
+                const localT = globalT - Math.trunc(globalT);
+                const p0 = points[index];
+                const p1 = points[index+1];
+                const p2 = points[index+2];
+                const p3 = points[index+3];
+                const paramX = getBSplineParam(p0.x, p1.x, p2.x, p3.x);
+                const paramY = getBSplineParam(p0.y, p1.y, p2.y, p3.y);
+                
+                const x = paramX.a0 + localT*(paramX.a1 + localT*(paramX.a2 + localT*paramX.a3));
+                const y = paramY.a0 + localT*(paramY.a1 + localT*(paramY.a2 + localT*paramY.a3));
+
+                point = new Point(x, y);
+                break;
+            }
         default:
             console.log("deu merda");
             break;
     } 
 
-    drawPoint(point.x, point.y, "green", 8);
+    drawPoint(point.x, point.y, "green", 12);
     
 }
 
@@ -212,6 +286,9 @@ function renderScreen(){
             break;
         case "s1":
             drawCatmullRomSpline();
+            break;
+        case "s2":
+            drawBSpline();
             break;
         default:
             console.log("deu merda");
@@ -253,7 +330,7 @@ canvas.addEventListener("mousedown", (event) => {
     for( let i = 0; i < points.length; ++i ){
         if( Math.hypot(points[i].x - x, points[i].y - y) < 10 ){
             isDragging = true;
-            pointToDrag = i;
+            draggingPoint = i;
             break;
         }
     }
@@ -263,8 +340,8 @@ canvas.addEventListener("mousedown", (event) => {
 
 canvas.addEventListener("mousemove", (event) =>{
     if( isDragging ){
-        points[pointToDrag].x = event.offsetX;
-        points[pointToDrag].y = event.offsetY;
+        points[draggingPoint].x = event.offsetX;
+        points[draggingPoint].y = event.offsetY;
         renderScreen();
     }
 });
